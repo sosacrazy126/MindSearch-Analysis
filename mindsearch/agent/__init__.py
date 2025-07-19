@@ -16,7 +16,7 @@ from .mindsearch_prompt import (
     searcher_input_template_en,
     searcher_system_prompt_en,
 )
-from .tavily_search import TavilySearch, AsyncTavilySearch
+
 
 LLM = {}
 
@@ -47,15 +47,7 @@ def init_agent(model_format="gpt4",
     date = datetime.now().strftime("The current date is %Y-%m-%d.")
     
     # Configure search plugin based on search engine
-    if search_engine == "TavilySearch":
-        plugins = [dict(
-            type=AsyncTavilySearch if use_async else TavilySearch,
-            api_key=os.getenv("TAVILY_API_KEY"),
-            search_depth="advanced",
-            include_answer=True,
-            max_results=6
-        )]
-    elif search_engine == "TencentSearch":
+    if search_engine == "TencentSearch":
         plugins = [dict(
             type=AsyncWebBrowser if use_async else WebBrowser,
             searcher_type=search_engine,
