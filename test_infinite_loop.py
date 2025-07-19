@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import mock modules before any lagent imports
+try:
+    import mock_lagent
+except ImportError:
+    pass
+
 from mindsearch.agent.mindsearch_agent import MindSearchAgent
 from mindsearch.agent.graph import WebSearchGraph, ExecutionAction
 from lagent.schema import AgentMessage, AgentStatusCode, ModelStatusCode
