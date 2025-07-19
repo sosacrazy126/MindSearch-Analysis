@@ -15,8 +15,14 @@ from mindsearch.agent.mindsearch_prompt import (
     searcher_input_template_en,
     searcher_system_prompt_en,
 )
+from mindsearch.agent.models import get_model_config
+
+# Get model from environment or use default
+model_name = os.environ.get("MODEL_NAME", "gpt4o-mini")
+print(f"Using model: {model_name}")
 
 date = datetime.now().strftime("The current date is %Y-%m-%d.")
+
 # Check for OpenAI API key
 openai_api_key = os.environ.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
@@ -24,11 +30,18 @@ if not openai_api_key:
     print("Please set your OpenAI API key using: export OPENAI_API_KEY='your-api-key'")
     sys.exit(1)
 
+# Get model configuration
+model_config = get_model_config(model_name)
+
+# Create LLM instance
 llm = GPTAPI(
-    model_type="gpt-4.0-mini",
-    key=openai_api_key,
-    api_base=os.environ.get("OPENAI_API_BASE") or os.getenv("OPENAI_API_BASE") or "https://api.openai.com/v1/chat/completions",
+    model_type=model_config["model_type"],
+    key=model_config["key"],
+    api_base=model_config["api_base"],
+    max_new_tokens=model_config.get("max_new_tokens", 2048),
+    temperature=model_config.get("temperature", 0.7),
 )
+
 plugins = [WebBrowser(searcher_type="DuckDuckGoSearch", topk=6)]
 agent = MindSearchAgent(
     llm=llm,

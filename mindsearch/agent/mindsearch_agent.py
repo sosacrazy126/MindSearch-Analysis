@@ -2,7 +2,7 @@ import json
 import logging
 import re
 from copy import deepcopy
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional, Any
 
 from lagent.schema import AgentMessage, AgentStatusCode, ModelStatusCode
 from lagent.utils import GeneratorWithReturn
@@ -11,7 +11,17 @@ from .graph import ExecutionAction, WebSearchGraph
 from .streaming import AsyncStreamingAgentForInternLM, StreamingAgentForInternLM
 
 
-def _update_ref(ref: str, ref2url: Dict[str, str], ptr: int) -> str:
+def _update_ref(ref: str, ref2url: Dict[str, str], ptr: int) -> Tuple[str, Dict[int, str], int]:
+    """Update reference numbers in text and maintain URL mapping.
+    
+    Args:
+        ref: Text containing references in [[n]] format
+        ref2url: Mapping of reference numbers to URLs
+        ptr: Starting reference number
+        
+    Returns:
+        Updated text, updated URL mapping, and next pointer value
+    """
     numbers = list({int(n) for n in re.findall(r"\[\[(\d+)\]\]", ref)})
     numbers = {n: idx + 1 for idx, n in enumerate(numbers)}
     updated_ref = re.sub(
@@ -32,39 +42,92 @@ def _update_ref(ref: str, ref2url: Dict[str, str], ptr: int) -> str:
     return updated_ref, updated_ref2url, len(numbers) + 1
 
 
+def _extract_search_result(memory_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Extract search result from memory item with better error handling.
+    
+    Args:
+        memory_item: Memory item potentially containing search results
+        
+    Returns:
+        Extracted search result or None if not found
+    """
+    try:
+        # Try to extract from content.result first
+        if isinstance(memory_item.get("content"), dict):
+            result = memory_item["content"].get("result")
+            if result:
+                return result
+        
+        # Try formatted.return_ path
+        if isinstance(memory_item.get("formatted"), dict):
+            return_data = memory_item["formatted"].get("return_")
+            if return_data:
+                return return_data
+                
+        # Try direct content if it's a search result
+        content = memory_item.get("content")
+        if isinstance(content, str) and "[[" in content:
+            return {"content": content}
+            
+    except Exception as e:
+        logging.warning(f"Error extracting search result: {e}")
+    
+    return None
+
+
 def _generate_references_from_graph(graph: Dict[str, dict]) -> Tuple[str, Dict[int, dict]]:
+    """Generate references from search graph with improved error handling.
+    
+    Args:
+        graph: Search graph containing nodes and their data
+        
+    Returns:
+        Formatted references string and URL mapping
+    """
     ptr, references, references_url = 0, [], {}
+    
     for name, data_item in graph.items():
         if name in ["root", "response"]:
             continue
         
-        # Check if memory structure exists and has enough elements
-        if ("memory" not in data_item or 
-            "agent.memory" not in data_item["memory"] or 
-            len(data_item["memory"]["agent.memory"]) < 3):
-            logging.warning(f"Skipping node {name}: insufficient memory structure")
-            continue
-            
-        # only search once at each node, thus the result offset is 2
-        if not data_item["memory"]["agent.memory"][2]["sender"].endswith("ActionExecutor"):
-            logging.warning(f"Skipping node {name}: expected ActionExecutor at index 2")
-            continue
-            
         try:
-            ref2url = {
-                int(k): v
-                for k, v in json.loads(data_item["memory"]["agent.memory"][2]["content"]).items()
-            }
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            logging.warning(f"Skipping node {name}: failed to parse references - {e}")
-            continue
+            # More flexible memory structure handling
+            memory = data_item.get("memory", {})
+            agent_memory = memory.get("agent.memory", [])
             
-        updata_ref, ref2url, added_ptr = _update_ref(
-            data_item["response"]["content"], ref2url, ptr
-        )
-        ptr += added_ptr
-        references.append(f'## {data_item["content"]}\n\n{updata_ref}')
-        references_url.update(ref2url)
+            # Find the search result in memory
+            search_result = None
+            for idx, mem_item in enumerate(agent_memory):
+                if isinstance(mem_item, dict):
+                    # Check if this is from ActionExecutor
+                    sender = mem_item.get("sender", "")
+                    if "ActionExecutor" in sender or "searcher" in sender.lower():
+                        search_result = _extract_search_result(mem_item)
+                        if search_result:
+                            break
+            
+            if not search_result:
+                logging.warning(f"Node {name}: No search results found in memory")
+                continue
+            
+            # Extract content and references
+            content = search_result.get("content", "")
+            ref2url = search_result.get("ref2url", {})
+            
+            if not content:
+                logging.warning(f"Node {name}: Empty content in search result")
+                continue
+            
+            # Update references
+            updated_ref, updated_ref2url, offset = _update_ref(content, ref2url, ptr)
+            references.append(f"## {name}\n\n{updated_ref}")
+            references_url.update(updated_ref2url)
+            ptr += offset
+            
+        except Exception as e:
+            logging.error(f"Error processing node {name}: {e}")
+            continue
+    
     return "\n\n".join(references), references_url
 
 

@@ -26,9 +26,15 @@ def init_agent(model_format="gpt4",
     mode = "async" if use_async else "sync"
     llm = LLM.get(model_format, {}).get(mode)
     if llm is None:
-        llm_cfg = deepcopy(getattr(llm_factory, model_format))
-        if llm_cfg is None:
-            raise NotImplementedError
+        # Use the new get_model_config function
+        if hasattr(llm_factory, 'get_model_config'):
+            llm_cfg = deepcopy(llm_factory.get_model_config(model_format))
+        else:
+            # Fallback to old method for backward compatibility
+            llm_cfg = deepcopy(getattr(llm_factory, model_format, None))
+            if llm_cfg is None:
+                raise NotImplementedError(f"Model format '{model_format}' is not supported")
+        
         if use_async:
             cls_name = (
                 llm_cfg["type"].split(".")[-1] if isinstance(
