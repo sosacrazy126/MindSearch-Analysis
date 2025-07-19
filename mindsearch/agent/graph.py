@@ -305,3 +305,12 @@ class ExecutionAction(BaseAction):
                         )
         res = [graph.nodes[node.strip().strip('"').strip("'")] for node in node_list]
         return res, graph.nodes, graph.adjacency_list
+
+
+# Import new modular implementations for easier access
+try:
+    from .web_search_graph import ModularWebSearchGraph, SearchNode
+    from .execution_action import ImprovedExecutionAction
+except ImportError:
+    # Fallback if new modules are not available yet
+    pass

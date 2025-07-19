@@ -10,31 +10,31 @@ from lagent.utils import create_object
 from . import models as llm_factory
 from .mindsearch_agent import AsyncMindSearchAgent, MindSearchAgent
 from .mindsearch_prompt import (
-    FINAL_RESPONSE_CN,
     FINAL_RESPONSE_EN,
-    GRAPH_PROMPT_CN,
     GRAPH_PROMPT_EN,
-    searcher_context_template_cn,
     searcher_context_template_en,
-    searcher_input_template_cn,
     searcher_input_template_en,
-    searcher_system_prompt_cn,
     searcher_system_prompt_en,
 )
 
 LLM = {}
 
 
-def init_agent(lang="cn",
-               model_format="gpt4",
+def init_agent(model_format="gpt4",
                search_engine="DuckDuckGoSearch",
                use_async=False):
     mode = "async" if use_async else "sync"
     llm = LLM.get(model_format, {}).get(mode)
     if llm is None:
-        llm_cfg = deepcopy(getattr(llm_factory, model_format))
-        if llm_cfg is None:
-            raise NotImplementedError
+        # Use the new get_model_config function
+        if hasattr(llm_factory, 'get_model_config'):
+            llm_cfg = deepcopy(llm_factory.get_model_config(model_format))
+        else:
+            # Fallback to old method for backward compatibility
+            llm_cfg = deepcopy(getattr(llm_factory, model_format, None))
+            if llm_cfg is None:
+                raise NotImplementedError(f"Model format '{model_format}' is not supported")
+        
         if use_async:
             cls_name = (
                 llm_cfg["type"].split(".")[-1] if isinstance(
@@ -59,24 +59,19 @@ def init_agent(lang="cn",
     agent = (AsyncMindSearchAgent if use_async else MindSearchAgent)(
         llm=llm,
         template=date,
-        output_format=InterpreterParser(
-            template=GRAPH_PROMPT_CN if lang == "cn" else GRAPH_PROMPT_EN),
+        output_format=InterpreterParser(template=GRAPH_PROMPT_EN),
         searcher_cfg=dict(
             llm=llm,
             plugins=plugins,
             template=date,
             output_format=PluginParser(
-                template=searcher_system_prompt_cn
-                if lang == "cn" else searcher_system_prompt_en,
+                template=searcher_system_prompt_en,
                 tool_info=get_plugin_prompt(plugins),
             ),
-            user_input_template=(searcher_input_template_cn if lang == "cn"
-                                 else searcher_input_template_en),
-            user_context_template=(searcher_context_template_cn if lang == "cn"
-                                   else searcher_context_template_en),
+            user_input_template=searcher_input_template_en,
+            user_context_template=searcher_context_template_en,
         ),
-        summary_prompt=FINAL_RESPONSE_CN
-        if lang == "cn" else FINAL_RESPONSE_EN,
+        summary_prompt=FINAL_RESPONSE_EN,
         max_turn=10,
     )
     return agent
