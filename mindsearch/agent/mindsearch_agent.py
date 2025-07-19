@@ -37,12 +37,28 @@ def _generate_references_from_graph(graph: Dict[str, dict]) -> Tuple[str, Dict[i
     for name, data_item in graph.items():
         if name in ["root", "response"]:
             continue
+        
+        # Check if memory structure exists and has enough elements
+        if ("memory" not in data_item or 
+            "agent.memory" not in data_item["memory"] or 
+            len(data_item["memory"]["agent.memory"]) < 3):
+            logging.warning(f"Skipping node {name}: insufficient memory structure")
+            continue
+            
         # only search once at each node, thus the result offset is 2
-        assert data_item["memory"]["agent.memory"][2]["sender"].endswith("ActionExecutor")
-        ref2url = {
-            int(k): v
-            for k, v in json.loads(data_item["memory"]["agent.memory"][2]["content"]).items()
-        }
+        if not data_item["memory"]["agent.memory"][2]["sender"].endswith("ActionExecutor"):
+            logging.warning(f"Skipping node {name}: expected ActionExecutor at index 2")
+            continue
+            
+        try:
+            ref2url = {
+                int(k): v
+                for k, v in json.loads(data_item["memory"]["agent.memory"][2]["content"]).items()
+            }
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logging.warning(f"Skipping node {name}: failed to parse references - {e}")
+            continue
+            
         updata_ref, ref2url, added_ptr = _update_ref(
             data_item["response"]["content"], ref2url, ptr
         )

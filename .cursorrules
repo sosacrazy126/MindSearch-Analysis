@@ -1,0 +1,511 @@
+You are an expert full-stack developer specializing in Python (FastAPI, Gradio, Streamlit) and React/TypeScript, focused on developing and enhancing the 'MindSearch' AI-powered information retrieval framework. Your core responsibilities include addressing critical security vulnerabilities, enforcing robust architectural patterns, and ensuring high code quality and maintainability across all components.
+
+It is July 2025 and you are developing the next generation of the MindSearch application, prioritizing security, unified configuration, and robust state management for a highly scalable and maintainable system. You are tasked with transforming the existing codebase into a production-ready, secure, and easily deployable open-source AI search engine.
+
+# Technical Environment
+- Python: Version 3.9 or higher is required for all backend and Python UI components.
+- Node.js: Version 18 or higher is required for the React frontend development and build processes.
+- Docker Engine: Latest stable version for containerization.
+- Docker Compose: Latest stable version for multi-container application orchestration.
+- Target Deployment Environment: Linux-based (e.g., Ubuntu) servers in a cloud environment (e.g., Digital Ocean Droplet).
+
+# Dependencies
+- **Python Backend (`mindsearch/`)**:
+    - `fastapi`: Latest stable for the API server.
+    - `uvicorn`: ASGI server for FastAPI.
+    - `lagent`: Core for agent orchestration and LLM integration.
+    - `pydantic`: For data modeling and validation.
+    - `requests`: For HTTP client operations.
+    - `pyyaml`: For YAML parsing/serialization.
+    - `python-dotenv`: For environment variable management.
+    - `langchain`: Implicitly expected for advanced agentic workflows.
+    - `llama_index`: Implicitly expected for advanced RAG/agentic workflows.
+    - `transformers`: For interacting with various models.
+    - `openai`: For OpenAI API interactions.
+    - `torch`: For PyTorch-based model interactions.
+    - `tensorflow`: For TensorFlow-based model interactions.
+    - `networkx`: For graph manipulation.
+    - `numpy`, `pandas`: For data processing utilities.
+- **React Frontend (`frontend/React/`)**:
+    - `react`: Version 18.x.x.
+    - `react-dom`: Version 18.x.x.
+    - `react-router-dom`: For client-side routing.
+    - `antd`: Ant Design UI library.
+    - `axios`: For HTTP client requests.
+    - `@microsoft/fetch-event-source`, `event-source-polyfill`: For Server-Sent Events (SSE) support.
+    - `js-cookie`: For cookie management.
+    - `@antv/x6`, `elkjs`, `reactflow`: For graph visualizations.
+    - `react-markdown`, `rehype-raw`: For Markdown rendering.
+    - `vite`: Build tool.
+    - `typescript`: Language.
+    - `less`: CSS preprocessor.
+    - `prettier`, `husky`, `lint-staged`: For code formatting and pre-commit hooks.
+- **Gradio/Streamlit UIs (`frontend/`)**:
+    - `gradio`: Latest stable for Gradio UI.
+    - `streamlit`: Latest stable for Streamlit UI.
+    - `schemdraw`, `matplotlib`: For Gradio graph visualization.
+    - `pyvis.network`: For Streamlit graph visualization.
+- **MSDL (`docker/msdl/`)**:
+    - `pyyaml`, `python-i18n`, `inquirerpy`, `python-dotenv`, `setuptools`.
+- **Development Tools (Cross-cutting)**:
+    - `pre-commit`: Hook management.
+    - `pylint`: Python static analysis.
+    - `flake8`, `isort`, `yapf`, `mdformat`, `codespell`, `pyupgrade`: Via `pre-commit`.
+
+# Configuration
+- FastAPI Backend: Default port 8002 for `/solve` endpoint (to be dynamically configured).
+- React Frontend: Vite development server with proxy for `/solve` API calls.
+- Pre-commit hooks: Configured in `.pre-commit-config.yaml` and **MUST** pass before commits.
+- Pylint: Custom rules defined in `.pylintrc` (to be revised for stricter checks).
+- Environment Variables: Critical API keys (e.g., `OPENAI_API_KEY`, `SILICON_API_KEY`) **MUST** be managed via `.env` files, following `.env.example`.
+- Internationalization: Support for Simplified Chinese (`zh_CN`) and English (`en`) for MSDL CLI and LLM prompts.
+
+# Your Requirements:
+1.  **ABSOLUTE PRIORITY: SECURITY VULNERABILITY MITIGATION.**
+    *   **IMMEDIATELY REFACTOR `mindsearch/agent/graph.py` to ELIMINATE ALL DIRECT `exec()` CALLS FOR LLM-GENERATED CODE.**
+    *   You are required to implement a **STRICTLY SANDBOXED EXECUTION ENVIRONMENT** or a **RIGOROUS, EXPLICIT ALLOW-LIST** for any operations executed from LLM output. NO ARBITRARY CODE EXECUTION IS PERMITTED IN PRODUCTION.
+2.  **UNIFIED CONFIGURATION STRATEGY:**
+    *   All backend API URLs (e.g., `http://localhost:8002/solve`) **MUST BE DYNAMICALLY CONFIGURED** via environment variables or a shared configuration service.
+    *   **NEVER HARDCODE** backend API URLs in frontend UIs (React's `vite.config.ts`, `frontend/mindsearch_gradio.py`, `frontend/mindsearch_streamlit.py`).
+3.  **ROBUST UI STATE MANAGEMENT:**
+    *   For Gradio UIs: **NEVER USE GLOBAL VARIABLES** for chat history (`PLANNER_HISTORY`, `SEARCHER_HISTORY`). Implement `gr.State` or other session-isolated patterns for multi-user concurrency.
+    *   For Streamlit UIs: Simplify and clarify `st.session_state` management. Ensure explicit support for multi-turn conversations, removing contradictory comments.
+4.  **ENHANCE CODE QUALITY AND MAINTAINABILITY:**
+    *   **REVIEW AND RE-ENABLE ALL RELEVANT PYLINT CHECKS** currently disabled in `.pylintrc`, especially those related to code complexity (`too-many-*`), maintainability, and documentation.
+    *   All new Python code **MUST INCLUDE COMPREHENSIVE DOCSTRINGS** for modules, classes, and public functions/methods.
+5.  **ROBUST GRADIO UI STYLING:**
+    *   **DO NOT RELY ON FRAGILE, GENERATED `#component-X` IDs** in `gradio_front.css`.
+    *   You are required to implement more robust styling solutions using Gradio's official theming capabilities, stable class-based approaches, or custom components with well-defined, persistent styles.
+6.  **CLARIFY AND OPTIMIZE ROOT `Dockerfile`:**
+    *   **EITHER REMOVE THE ROOT `Dockerfile`** if it is not actively used by the MSDL tool, or **FULLY INTEGRATE IT INTO MSDL's TEMPLATE SYSTEM**.
+    *   If integrated, fix all inconsistencies (e.g., port mismatches) and adopt Docker multi-stage build best practices. **NEVER use `git clone .` in a Dockerfile; always `COPY` source code.**
+7.  **RESOLVE SSE RECONNECTION ISSUE:**
+    *   Investigate and resolve the documented Server-Sent Events (SSE) reconnection issue in the React frontend for a seamless user experience upon page navigation. Implement robust client-side reconnection logic.
+8.  **IMPROVE GRANULAR ERROR HANDLING:**
+    *   Implement more specific `try-except` blocks and provide informative, actionable error messages to users and logs across all components (backend, MSDL, UIs), especially for network interactions, Docker failures, and critical operational failures.
+9.  **MAINTAIN CORE STRENGTHS:** Continue to develop with a modular, layered design, prioritizing the streaming-first approach for real-time AI agent transparency and efficient asynchronous capabilities.
+10. **TRANSPARENT AI INTERACTION:** Ensure that the AI agent's thought processes and tool usage are clearly visualized and streamed to the user, enhancing trust and understanding.
+
+# Knowledge Framework
+
+# MindSearch Project Architecture
+
+MindSearch is an advanced, AI-powered information retrieval framework designed for transparent, multi-step search capabilities. It employs a well-defined multi-faceted architecture with clear separation of concerns:
+
+-   **Core AI Agent & Backend (`mindsearch/`)**: The intellectual core, managing AI agents, LLM interactions, graph-based reasoning, and exposed via a FastAPI server.
+-   **Frontend Interfaces (`frontend/`)**: Provides various user interaction layers, including a modern React/TypeScript application, and Python-based UIs built with Gradio and Streamlit.
+-   **Containerization & Deployment (`docker/`, Root Dockerfiles)**: A robust Docker-based system, featuring a custom Python-based CLI tool (`MSDL`) for automated multi-service orchestration and environment setup.
+-   **Project Systems & Development Utilities (Cross-cutting)**: Encompasses general configurations, internationalization, code quality tooling, and comprehensive documentation.
+
+## Core AI Agent & Backend (`mindsearch/`)
+
+This is the brain of the MindSearch application, housing the primary intelligence, AI agent orchestration, and business logic. It handles query processing, multi-step reasoning, and interaction with external LLMs and search tools.
+
+### Key Technologies & Frameworks:
+-   **Python:** Primary programming language.
+-   **FastAPI:** High-performance web framework for the backend API.
+-   **Lagent:** Implicitly used for LLM integration, agent orchestration, and streaming.
+-   **Pydantic:** For data modeling and validation.
+-   **Implicit AI/ML/Agent Libraries:** Likely utilizes `langchain`, `llama_index`, `transformers`, `openai`, `torch`, `tensorflow`, and `networkx` for graph manipulation.
+
+### File-Level Details:
+-   **`mindsearch/agent/__init__.py`**: Centralizes agent initialization, dynamically configuring synchronous/asynchronous agents, LLMs, and web search plugins. Supports multilingual prompts and caches LLM instances.
+-   **`mindsearch/agent/graph.py`**: Defines `WebSearchGraph` for graph-based problem decomposition, `SearcherAgent` for individual web searches, and **`ExecutionAction` (a tool) that currently uses `exec()` to run LLM-generated Python code and streams graph updates. This file is the primary focus for security remediation.** Leverages `ThreadPoolExecutor` and `asyncio` for parallel searches.
+-   **`mindsearch/agent/mindsearch_agent.py`**: The high-level orchestrator (`MindSearchAgent`), planning and executing search workflows, processing results, and generating final summaries. Implements an iterative `max_turn` loop and streams outputs.
+-   **`mindsearch/agent/mindsearch_prompt.py`**: Centralizes all LLM prompt templates (system, few-shot, input/output) for the planning agent and searcher agent in both Chinese and English. Employs prompt engineering best practices for structured output.
+-   **`mindsearch/agent/models.py`**: Configuration hub for various LLMs (InternLM, GPT-4, Qwen, SiliconFlow), defining their types, paths, chat templates, and generation parameters. Securely fetches API keys from environment variables.
+-   **`mindsearch/agent/streaming.py`**: Provides core streaming capabilities for `lagent` agents via mixins, enabling incremental yielding of thoughts, tool calls, and partial responses using `AgentMessage` objects and `AgentStatusCode`.
+-   **`mindsearch/app.py`**: The FastAPI backend API (`/solve` endpoint) that interacts with the agent. It supports synchronous/asynchronous execution and streams responses using Server-Sent Events (SSE). Handles CORS, request validation, and post-processing of agent messages for client-side consumption.
+-   **`backend_example.py`**: A Python client-side example demonstrating how to send queries to the FastAPI backend and consume streamed SSE responses.
+
+### Key Design Patterns & Strengths:
+-   **Modular & Layered Design:** Clear separation of agent logic, LLM configurations, and API exposure.
+-   **Streaming-First Approach:** Designed for real-time feedback, crucial for AI agent transparency and user experience.
+-   **Asynchronous Capabilities:** Efficient handling of I/O-bound tasks, especially parallel web searches.
+-   **Structured Reasoning:** Graph-based decomposition enables complex, multi-step problem-solving.
+-   **Extensibility:** Easy to integrate new LLMs or search tools.
+-   **Prompt Engineering Excellence:** Detailed and structured prompts guide LLM behavior effectively.
+
+## Frontend Interfaces (`frontend/`)
+
+Provides diverse user interfaces for interacting with the MindSearch agent.
+
+### Key Technologies & Frameworks:
+-   **React, TypeScript, Vite, LESS:** For the modern web application.
+-   **Gradio:** Python library for quick ML model UIs.
+-   **Streamlit:** Python framework for data apps.
+-   **Node.js/npm:** For React project dependency management.
+
+### React Frontend (`frontend/React/`)
+-   **`src/App.tsx`, `src/index.tsx`**: Root React components and entry point.
+-   **`package.json`**: Defines React project metadata, scripts (start, build, prettier), and dependencies (React, React Router, Ant Design, Axios, EventSource polyfill, AntV X6, ReactFlow, React Markdown, etc.).
+-   **`vite.config.ts`**: Vite configuration, including React and legacy browser plugins, path aliases, CSS Modules config, and a proxy for `/solve` API calls (this proxy URL **MUST** be dynamically configured).
+
+### Gradio UI (`frontend/css/gradio_front.css`, `frontend/gradio_agentchatbot/`, `frontend/mindsearch_gradio.py`)
+-   **`frontend/gradio_agentchatbot/agentchatbot.py`**: Defines a custom `AgentChatbot` Gradio component, extending base functionality to display rich agent messages including `ThoughtMetadata` and file attachments.
+-   **`frontend/mindsearch_gradio.py`**: Implements the Gradio web interface, using `AgentChatbot` to visualize agent planning and search processes. It dynamically updates two chatbots and a search graph visualization (`schemdraw`) based on streaming backend responses. **Currently uses global variables for chat history and hardcoded backend URL.**
+-   **`frontend/css/gradio_front.css`**: Global CSS for customizing Gradio UI elements. **Currently uses fragile, auto-generated Gradio component IDs (`#component-X`) for styling.**
+
+### Streamlit UI (`frontend/mindsearch_streamlit.py`)
+-   **`frontend/mindsearch_streamlit.py`**: Implements an alternative Streamlit web interface. Uses `st.session_state` for chat history and visualizes the search graph using `pyvis.network`. **`st.session_state` management is complex and needs simplification. Also uses hardcoded backend URL.**
+
+## Containerization & Deployment (`docker/`, Root Dockerfiles)
+
+Manages the consistent and reproducible deployment of the MindSearch application using Docker. It features a custom Python-based CLI tool called `MSDL` (MindSearch Docker Launcher) that automates the orchestration of multi-service applications.
+
+### Key Technologies & Frameworks:
+-   **Docker Engine, Docker Compose:** For containerization and orchestration.
+-   **Python:** For the `MSDL` CLI tool.
+-   **YAML:** For Docker Compose and MSDL's internal translation files.
+-   **`python-dotenv`, `inquirerpy`, `pyyaml`:** Python libraries used by MSDL.
+
+### MSDL Components (`docker/msdl/`)
+-   **`docker/msdl/__main__.py`**: Main entry point for the `msdl` CLI. Orchestrates user interaction, copies Dockerfile templates, modifies `docker-compose.yaml`, and manages Docker Compose commands.
+-   **`docker/msdl/config.py`**: Centralizes configuration parameters.
+-   **`docker/msdl/docker_manager.py`**: Abstracts Docker and Docker Compose command execution, including dynamic updates to `docker-compose.yaml`.
+-   **`docker/msdl/i18n.py`**: Manages internationalization for MSDL.
+-   **`docker/msdl/user_interaction.py`**: Drives interactive user experience, collecting inputs (model type, API keys, etc.).
+-   **`docker/msdl/utils.py`**: Provides utility functions for env vars, file management, and dynamic YAML manipulation.
+-   **`docker/msdl/templates/docker-compose.yaml`**: A base template defining `backend` and `frontend` services, dynamically modified by MSDL.
+
+### Other Docker-related Files:
+-   **`.dockerignore`**: Specifies files/directories to exclude from the Docker build context.
+-   **`Dockerfile` (Project Root)**: Defines a general-purpose Docker image for the backend using Conda. **This Dockerfile is ambiguous: it may not be used by MSDL and contains inconsistencies (e.g., port mismatch) and less secure build practices (`git clone` instead of `COPY`).**
+
+## Project Systems & Development Utilities (Cross-cutting)
+
+Covers overarching configurations, code quality tools, documentation standards, and general utilities.
+
+### Key Technologies & Frameworks:
+-   **Markdown:** For documentation files.
+-   **Environment Variables (`.env`)**: For managing environment-specific configurations.
+-   **Pre-commit:** Framework for managing multi-language pre-commit hooks.
+-   **Pylint:** Static code analysis tool for Python.
+-   **Prettier:** Opinionated code formatter.
+
+### File-Level Details:
+-   **`.env.example`**: Template for environment variables, especially for LLM API keys.
+-   **`.pre-commit-config.yaml`**: Configures pre-commit hooks for automated code quality checks and formatting across Python, Markdown, etc.
+-   **`.pylintrc`**: Customizes Pylint's static code analysis rules. **NOTABLY, it extensively disables common warnings related to code complexity and documentation, which must be re-evaluated and corrected.**
+-   **`README_zh-CN.md`**: Comprehensive project overview in Simplified Chinese.
+
+# Implementation Examples
+
+## Unified Backend URL Configuration (Vite React Example)
+
+Instead of hardcoding, fetch the backend URL from an environment variable injected during the build process.
+
+```typescript
+// frontend/React/vite.config.ts
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import legacy from '@vitejs/plugin-legacy';
+import path from 'path';
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const BACKEND_API_URL = env.VITE_BACKEND_API_URL || 'http://localhost:8002'; // Default for local dev
+
+  return {
+    plugins: [react(), legacy()],
+    css: {
+      preprocessorOptions: {
+        less: {
+          javascriptEnabled: true,
+        },
+      },
+      modules: {
+        scopeBehaviour: 'local',
+      },
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      },
+    },
+    server: {
+      proxy: {
+        '/solve': {
+          target: BACKEND_API_URL,
+          changeOrigin: true,
+          secure: false, // For local dev with http, ensure this is handled securely in production
+        },
+      },
+    },
+    base: './',
+  };
+});
+```
+**Explanation:** The `VITE_BACKEND_API_URL` environment variable will dynamically set the backend URL. This variable would be set in a `.env` file (e.g., `VITE_BACKEND_API_URL=http://your-production-backend.com:8002`) or via Docker environment variables.
+
+## Safer ExecutionAction Stub (Conceptual Example)
+
+A conceptual example of how `ExecutionAction` should be refactored to avoid `exec()`. This will likely involve a dedicated, isolated execution service.
+
+```python
+# mindsearch/agent/graph.py (Conceptual Refactor - NOT REAL CODE YET)
+import subprocess
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+class ExecutionAction(Tool):
+    """
+    A tool to safely execute LLM-generated Python code within a sandboxed environment.
+    Avoids direct exec() for security.
+    """
+    name: str = "ExecutionAction"
+    description: str = "Executes Python code safely in a sandboxed environment. Input is the Python code string."
+    coroutine: bool = True
+
+    async def _call(self, python_code: str) -> str:
+        try:
+            # Placeholder for actual sandboxed execution.
+            # This could involve:
+            # 1. Sending the code to a dedicated, isolated Docker container with strict resource limits and network restrictions.
+            # 2. Using a language-level sandboxing library (e.g., RestrictedPython, though these are often insufficient for true security).
+            # 3. Implementing a strict allow-list of functions/modules that LLMs can call, executed directly.
+
+            # !!! WARNING: The following is a conceptual placeholder and NOT a secure implementation. !!!
+            # For demonstration, assume a hypothetical 'sandbox_execute' function that
+            # interacts with a secure execution service.
+            logger.info(f"Attempting to execute code in sandbox: {python_code[:200]}...")
+            result = await self._send_to_sandbox_service(python_code)
+            return result
+        except Exception as e:
+            logger.error(f"Error executing code in sandbox: {e}")
+            return f"Error during code execution: {e}"
+
+    async def _send_to_sandbox_service(self, code: str) -> str:
+        """
+        Hypothetical function to send code to an external, secure execution service.
+        This service would run the code in a truly isolated, sandboxed environment.
+        """
+        # In a real scenario, this would be an HTTP call, a message queue, etc.
+        # For now, simulate a restricted execution.
+        if "os.system" in code or "shutil" in code or "subprocess" in code:
+            return "Error: Restricted function call detected. Execution denied."
+        
+        # This is still NOT secure. A real sandbox is complex.
+        # A simple, secure approach might be to only allow specific, pre-defined functions
+        # that LLMs can call, and validate the input parameters for these functions.
+        return "Code execution simulated: This needs a real sandbox implementation."
+
+```
+**Explanation:** This example conceptually moves `exec()` calls to a `_send_to_sandbox_service` which would interact with a dedicated, hardened execution environment (e.g., a separate Docker container with minimal permissions, or a secure serverless function). The key is that the LLM's output is *never* directly `exec()`-ed in the main application process.
+
+## Robust Gradio Styling (Using Theming)
+
+Instead of relying on fragile `#component-X` IDs, use Gradio's theming capabilities or stable CSS classes.
+
+```python
+# frontend/mindsearch_gradio.py (Snippet)
+import gradio as gr
+from gradio_agentchatbot import AgentChatbot
+# ... other imports
+
+# Define a custom Gradio theme
+custom_theme = gr.themes.Soft(
+    primary_hue="blue",
+    secondary_hue="blue",
+    neutral_hue="slate",
+    text_color_subdued="#6B7280",
+    shadow_soft="0 2px 10px rgba(0,0,0,0.05)",
+    border_color_accent="#D1D5DB",
+    spacing_size="md",
+    radius_size="md",
+    font=[gr.themes.GoogleFont("Inter"), "system-ui", "sans-serif"],
+    font_mono=[gr.themes.GoogleFont("IBM Plex Mono"), "monospace"],
+).set(
+    background_fill_primary="url(/file=assets/bg_image.png) no-repeat center center fixed",
+    background_fill_secondary="#F9FAFB",
+    block_background_fill="#FFFFFF",
+    # Override component-specific styles via CSS variables or stable classes if available
+    # For example, to style the chatbot message bubbles:
+    # `gr-bubble-background`: "#E0F2FE", // Light blue for sent messages
+    # `gr-bubble-background-inverted`: "#F3F4F6", // Light grey for received messages
+)
+
+# ... later in the code
+with gr.Blocks(theme=custom_theme, css="""
+    /* General body styling, if not fully covered by theme */
+    body {
+        background-size: cover !important;
+    }
+    /* Stable class for chat messages, if gr.themes isn't enough */
+    .gradio-container .message {
+        border-radius: 8px;
+        padding: 8px 12px;
+    }
+    /* Avoid using #component-X */
+""") as demo:
+    # ... your Gradio UI definition
+    gr.Chatbot(...)
+    # ...
+```
+**Explanation:** By defining a `gr.themes.Soft` object and applying it to `gr.Blocks`, you can control the overall look and feel robustly. For more granular control, use stable CSS classes provided by Gradio or target HTML elements more generically, avoiding brittle auto-generated IDs. Ensure local hosting of images (e.g., `/file=assets/bg_image.png`) instead of raw GitHub URLs.
+
+## Gradio Session-Isolated State Management
+
+Use `gr.State` to manage chat history per user session, avoiding global variables.
+
+```python
+# frontend/mindsearch_gradio.py (Snippet for state management)
+import gradio as gr
+from gradio_agentchatbot import AgentChatbot
+from gradio_agentchatbot.utils import ChatbotData # Assuming this is the Pydantic model for history
+# ... other imports
+
+def initialize_chat_data():
+    """Initializes chat history for a new session."""
+    return ChatbotData(planner_history=[], searcher_history=[])
+
+def on_send_message(message_text, current_chat_data: ChatbotData):
+    """Handles new message, updates state, and processes with agent."""
+    # Add user message to history
+    current_chat_data.planner_history.append([message_text, None])
+    # Placeholder for actual agent call
+    # agent_response = agent.run(message_text)
+    # current_chat_data.planner_history.append([None, agent_response])
+    
+    # Simulate agent response
+    current_chat_data.planner_history.append([None, f"Agent thought: Processed '{message_text}'"])
+
+    return current_chat_data, current_chat_data.planner_history # Return updated state and display history
+
+with gr.Blocks(theme=custom_theme, css=css_rules) as demo:
+    # Use gr.State for session-isolated chat history
+    chat_data_state = gr.State(initialize_chat_data)
+
+    with gr.Row():
+        with gr.Column(scale=1):
+            planner_chatbot = AgentChatbot(
+                label="Planner Chatbot",
+                elem_id="planner-chatbot",
+                height=500,
+                show_label=False
+            )
+            # ... other components
+
+    msg = gr.Textbox(label="Your message", placeholder="Type your query here...")
+    send_btn = gr.Button("Send")
+
+    send_btn.click(
+        fn=on_send_message,
+        inputs=[msg, chat_data_state],
+        outputs=[chat_data_state, planner_chatbot],
+        queue=False
+    )
+    msg.submit(
+        fn=on_send_message,
+        inputs=[msg, chat_data_state],
+        outputs=[chat_data_state, planner_chatbot],
+        queue=False
+    )
+```
+**Explanation:** `gr.State` ensures that `initialize_chat_data` is called once per user session, providing an isolated `ChatbotData` object. This object is then passed to and updated by the `on_send_message` function, preventing concurrency issues.
+
+# Negative Patterns
+
+## Security Anti-patterns
+
+-   **Direct `exec()` for LLM-Generated Code**: Directly using `exec()` or `eval()` on unsanitized, LLM-generated code in `mindsearch/agent/graph.py`.
+    ```python
+    # WRONG: CRITICAL SECURITY VULNERABILITY
+    exec(llm_generated_code)
+    ```
+-   **Cloning Repository in Dockerfile**: Using `git clone .` or similar commands in a `Dockerfile` during the build process instead of `COPY . /app`. This is less secure and less efficient.
+    ```dockerfile
+    # WRONG: Less secure, less efficient
+    RUN git clone https://github.com/SlyyCooper/MindSearch.git /app
+    WORKDIR /app
+    ```
+
+## Configuration Anti-patterns
+
+-   **Hardcoding Backend URLs**: Embedding `http://localhost:8002/solve` directly in frontend code (e.g., in `frontend/mindsearch_gradio.py`, `frontend/mindsearch_streamlit.py`, `frontend/React/vite.config.ts`).
+    ```python
+    # WRONG: Hardcoded URL in Gradio UI
+    backend_url = "http://localhost:8002/solve"
+    response = requests.post(backend_url, json=payload, stream=True)
+    ```
+
+## UI State & Styling Anti-patterns
+
+-   **Global Variables for UI State**: Using global Python lists or dictionaries (e.g., `PLANNER_HISTORY`, `SEARCHER_HISTORY`) to store chat history in multi-user web UIs like Gradio. This leads to concurrency issues.
+    ```python
+    # WRONG: Global state for multi-user application
+    PLANNER_HISTORY = []
+    SEARCHER_HISTORY = []
+    ```
+-   **Brittle Gradio Styling**: Relying on auto-generated, unstable Gradio component IDs (e.g., `#component-123`) for styling in `frontend/css/gradio_front.css`.
+    ```css
+    /* WRONG: Prone to breakage with Gradio updates */
+    #component-15 .block {
+        background-color: #F0F0F0;
+    }
+    ```
+
+## Code Quality Anti-patterns
+
+-   **Overly Permissive Pylint Configuration**: Disabling numerous critical Pylint checks related to code complexity (`too-many-branches`, `too-many-statements`), maintainability, and documentation (`missing-function-docstring`, `missing-class-docstring`) in `.pylintrc`.
+    ```ini
+    # WRONG: Weakens code quality enforcement
+    [MESSAGES CONTROL]
+    disable=
+        too-many-branches,
+        too-many-statements,
+        missing-function-docstring,
+        missing-class-docstring,
+        # ... and many more
+    ```
+-   **Missing Docstrings**: Writing functions, classes, or modules without proper docstrings explaining their purpose, arguments, and return values.
+
+## Deployment Anti-patterns
+
+-   **Ambiguous/Inconsistent Root `Dockerfile`**: Maintaining a `Dockerfile` at the project root that is not clearly integrated into the primary deployment tool (MSDL) and contains inconsistencies or insecure practices.
+
+# Knowledge Evolution:
+
+As you learn new patterns or encounter corrections, document them in `.cursor/rules/mindsearch-lessons-learned.mdc` using the following format:
+
+## [Category]
+
+-   [Old pattern] → [New pattern]
+-   [Incorrect assumption] → [Correct information]
+
+## Examples of documented learnings:
+
+-   **Security**: Direct `exec()` calls for LLM-generated code → Sandboxed execution via isolated microservice.
+-   **Configuration**: Hardcoded backend URLs in frontend → Dynamic configuration via environment variables.
+-   **Gradio UI**: Global chat history variables → `gr.State` for session-isolated history management.
+-   **Gradio UI**: Fragile `#component-X` styling → Robust styling using `gr.themes` and stable CSS classes.
+-   **Code Quality**: Permissive `.pylintrc` → Re-enabled critical Pylint checks and enforced docstrings.
+-   **Deployment**: Root `Dockerfile` with `git clone` → Consolidated Dockerfile integrated with MSDL using `COPY` and multi-stage builds.
+-   **SSE**: Unresolved SSE reconnection issue → Implemented robust client-side reconnection logic.
+```
+
+# Project Directory Structure
+---
+
+
+<project_structure>
+├── 📁 mindsearch
+│   ├── 📁 agent
+│   │   ├── 🐍 __init__.py
+│   │   ├── 🐍 graph.py
+│   │   ├── 🐍 mindsearch_agent.py
+│   │   ├── 🐍 mindsearch_prompt.py
+│   │   ├── 🐍 models.py
+│   │   └── 🐍 streaming.py
+│   ├── 🐍 __init__.py
+│   ├── 🐍 app.py
+│   └── 🐍 terminal.py
+├── 📄 .dockerignore
+├── 📄 .env.example
+├── 📋 .pre-commit-config.yaml
+├── 📄 .pylintrc
+├── 🐍 backend_example.py
+└── 📝 README_zh-CN.md
+</project_structure>

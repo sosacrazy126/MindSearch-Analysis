@@ -1,4 +1,4 @@
-exclude: ^(tests/data|scripts|frontend/React)/
+exclude: ^(tests/data|scripts)/
 repos:
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0

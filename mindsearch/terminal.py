@@ -4,7 +4,7 @@ from datetime import datetime
 
 from lagent.actions import WebBrowser
 from lagent.agents.stream import get_plugin_prompt
-from lagent.llms import INTERNLM2_META, LMDeployServer
+from lagent.llms import GPTAPI
 from lagent.prompts import InterpreterParser, PluginParser
 
 from mindsearch.agent.mindsearch_agent import MindSearchAgent
@@ -21,20 +21,21 @@ from mindsearch.agent.mindsearch_prompt import (
     searcher_system_prompt_en,
 )
 
-lang = "cn"
+lang = "en"
 date = datetime.now().strftime("The current date is %Y-%m-%d.")
-llm = LMDeployServer(
-    path="internlm/internlm2_5-7b-chat",
-    model_name="internlm2",
-    meta_template=INTERNLM2_META,
-    top_p=0.8,
-    top_k=1,
-    temperature=1.0,
-    max_new_tokens=8192,
-    repetition_penalty=1.02,
-    stop_words=["<|im_end|>", "<|action_end|>"],
+# Check for OpenAI API key
+openai_api_key = os.environ.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    print("Error: OPENAI_API_KEY not found in environment variables.")
+    print("Please set your OpenAI API key using: export OPENAI_API_KEY='your-api-key'")
+    sys.exit(1)
+
+llm = GPTAPI(
+    model_type="gpt-4-turbo",
+    key=openai_api_key,
+    api_base=os.environ.get("OPENAI_API_BASE") or os.getenv("OPENAI_API_BASE") or "https://api.openai.com/v1/chat/completions",
 )
-plugins = [WebBrowser(searcher_type="BingSearch", topk=6)]
+plugins = [WebBrowser(searcher_type="DuckDuckGoSearch", topk=6)]
 agent = MindSearchAgent(
     llm=llm,
     template=date,
@@ -58,9 +59,30 @@ agent = MindSearchAgent(
     max_turn=10,
 )
 
-for agent_return in agent("上海今天适合穿什么衣服"):
-    pass
-
-print(agent_return.sender)
-print(agent_return.content)
-print(agent_return.formatted["ref2url"])
+try:
+    query = "What is the weather like today in New York?"
+    print(f"Query: {query}")
+    print("Starting search...")
+    
+    agent_return = None
+    for agent_return in agent(query):
+        if hasattr(agent_return, 'sender'):
+            print(f"Step: {agent_return.sender}")
+        if hasattr(agent_return, 'content') and agent_return.content:
+            print(f"Content: {agent_return.content}")
+    
+    if agent_return:
+        print("\n=== Final Result ===")
+        print(f"Sender: {agent_return.sender}")
+        if hasattr(agent_return, 'content'):
+            print(f"Content: {agent_return.content}")
+        if hasattr(agent_return, 'formatted') and agent_return.formatted:
+            if 'ref2url' in agent_return.formatted:
+                print(f"References: {agent_return.formatted['ref2url']}")
+    else:
+        print("No results returned")
+        
+except Exception as e:
+    print(f"Error during execution: {e}")
+    import traceback
+    traceback.print_exc()

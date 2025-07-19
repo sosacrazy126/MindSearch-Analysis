@@ -26,8 +26,8 @@ LLM = {}
 
 
 def init_agent(lang="cn",
-               model_format="internlm_server",
-               search_engine="BingSearch",
+               model_format="gpt4",
+               search_engine="DuckDuckGoSearch",
                use_async=False):
     mode = "async" if use_async else "sync"
     llm = LLM.get(model_format, {}).get(mode)
