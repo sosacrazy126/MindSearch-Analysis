@@ -16,6 +16,7 @@ from .mindsearch_prompt import (
     searcher_input_template_en,
     searcher_system_prompt_en,
 )
+from .tavily_search import TavilySearch, AsyncTavilySearch
 
 LLM = {}
 
@@ -44,18 +45,32 @@ def init_agent(model_format="gpt4",
         LLM.setdefault(model_format, {}).setdefault(mode, llm)
 
     date = datetime.now().strftime("The current date is %Y-%m-%d.")
-    plugins = [(dict(
-        type=AsyncWebBrowser if use_async else WebBrowser,
-        searcher_type=search_engine,
-        topk=6,
-        secret_id=os.getenv("TENCENT_SEARCH_SECRET_ID"),
-        secret_key=os.getenv("TENCENT_SEARCH_SECRET_KEY"),
-    ) if search_engine == "TencentSearch" else dict(
-        type=AsyncWebBrowser if use_async else WebBrowser,
-        searcher_type=search_engine,
-        topk=6,
-        api_key=os.getenv("WEB_SEARCH_API_KEY"),
-    ))]
+    
+    # Configure search plugin based on search engine
+    if search_engine == "TavilySearch":
+        plugins = [dict(
+            type=AsyncTavilySearch if use_async else TavilySearch,
+            api_key=os.getenv("TAVILY_API_KEY"),
+            search_depth="advanced",
+            include_answer=True,
+            max_results=6
+        )]
+    elif search_engine == "TencentSearch":
+        plugins = [dict(
+            type=AsyncWebBrowser if use_async else WebBrowser,
+            searcher_type=search_engine,
+            topk=6,
+            secret_id=os.getenv("TENCENT_SEARCH_SECRET_ID"),
+            secret_key=os.getenv("TENCENT_SEARCH_SECRET_KEY"),
+        )]
+    else:
+        plugins = [dict(
+            type=AsyncWebBrowser if use_async else WebBrowser,
+            searcher_type=search_engine,
+            topk=6,
+            api_key=os.getenv("WEB_SEARCH_API_KEY"),
+        )]
+    
     agent = (AsyncMindSearchAgent if use_async else MindSearchAgent)(
         llm=llm,
         template=date,
