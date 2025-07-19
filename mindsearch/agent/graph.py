@@ -1,4 +1,5 @@
 import asyncio
+import ast
 import queue
 import random
 import re
@@ -7,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from threading import Thread
-from typing import Dict, List
+from typing import Dict, List, Any, Union
 
 from lagent.actions import BaseAction
 from lagent.schema import AgentMessage, AgentStatusCode
@@ -245,6 +246,80 @@ class WebSearchGraph:
             cls._SEARCHER_THREAD.append(thread)
 
 
+class SafeGraphExecutor:
+    """Safe execution environment for WebSearchGraph operations."""
+    
+    ALLOWED_METHODS = {
+        'add_node', 'add_edge', 'add_response_node', 'node'
+    }
+    
+    ALLOWED_ATTRIBUTES = {
+        'nodes', 'adjacency_list', 'n_active_tasks'
+    }
+    
+    def __init__(self, graph_instance):
+        """Initialize with a WebSearchGraph instance."""
+        self.graph = graph_instance
+    
+    def parse_and_validate(self, code: str) -> List[ast.stmt]:
+        """Parse code and validate it contains only safe operations."""
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            raise ValueError(f"Invalid Python syntax: {e}")
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                # Check method calls
+                if isinstance(node.func, ast.Attribute):
+                    if isinstance(node.func.value, ast.Name) and node.func.value.id == 'graph':
+                        if node.func.attr not in self.ALLOWED_METHODS:
+                            raise ValueError(f"Method '{node.func.attr}' is not allowed")
+                    else:
+                        raise ValueError("Only graph methods are allowed")
+                else:
+                    raise ValueError("Only graph method calls are allowed")
+            
+            elif isinstance(node, ast.Attribute):
+                # Check attribute access
+                if isinstance(node.value, ast.Name) and node.value.id == 'graph':
+                    if node.attr not in self.ALLOWED_ATTRIBUTES:
+                        raise ValueError(f"Attribute '{node.attr}' is not allowed")
+            
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                raise ValueError("Import statements are not allowed")
+            
+            elif isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.AsyncFunctionDef)):
+                raise ValueError("Function and class definitions are not allowed")
+            
+            elif isinstance(node, (ast.Global, ast.Nonlocal)):
+                raise ValueError("Global and nonlocal statements are not allowed")
+        
+        return tree.body
+    
+    def execute_safe(self, code: str) -> Any:
+        """Execute code safely with only graph operations allowed."""
+        statements = self.parse_and_validate(code)
+        
+        # Create a restricted namespace
+        safe_namespace = {
+            'graph': self.graph,
+            '__builtins__': {},  # No built-in functions
+        }
+        
+        result = None
+        for stmt in statements:
+            compiled = compile(ast.Module([stmt], type_ignores=[]), '<safe_exec>', 'exec')
+            exec(compiled, safe_namespace, safe_namespace)
+            
+            # Capture any expression results
+            if isinstance(stmt, ast.Expr):
+                compiled_expr = compile(ast.Expression(stmt.value), '<safe_eval>', 'eval')
+                result = eval(compiled_expr, safe_namespace, safe_namespace)
+        
+        return result
+
+
 class ExecutionAction(BaseAction):
     """Tool used by MindSearch planner to execute graph node query."""
 
@@ -260,11 +335,23 @@ class ExecutionAction(BaseAction):
             return text
 
         command = extract_code(command)
-        exec(command, global_dict, local_dict)
+        
+        # Get the graph instance from local_dict
+        graph: WebSearchGraph = local_dict.get("graph")
+        if not isinstance(graph, WebSearchGraph):
+            raise ValueError("WebSearchGraph instance not found in local context")
+        
+        # Use safe execution instead of unsafe exec()
+        executor = SafeGraphExecutor(graph)
+        try:
+            executor.execute_safe(command)
+        except ValueError as e:
+            raise ValueError(f"Unsafe operation detected: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Execution error: {e}")
 
         # 匹配所有 graph.node 中的内容
         node_list = re.findall(r"graph.node\((.*?)\)", command)
-        graph: WebSearchGraph = local_dict["graph"]
         while graph.n_active_tasks:
             while not graph.searcher_resp_queue.empty():
                 node_name, _, _ = graph.searcher_resp_queue.get(timeout=60)

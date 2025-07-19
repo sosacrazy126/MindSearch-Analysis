@@ -1,37 +1,69 @@
+"""
+MindSearch FastAPI Application
+
+A FastAPI-based web service for the MindSearch AI-powered information retrieval system.
+"""
+
 import asyncio
 import json
 import logging
 import random
-from typing import Dict, List, Union
+import os
+from typing import Dict, List, Union, Optional
 
 import janus
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.requests import Request
-from pydantic import BaseModel, Field
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field, validator
 from sse_starlette.sse import EventSourceResponse
 
 from mindsearch.agent import init_agent
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 def parse_arguments():
+    """Parse command line arguments for the FastAPI application."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="MindSearch API")
+    parser = argparse.ArgumentParser(description="MindSearch API Server")
     parser.add_argument("--host", default="0.0.0.0", type=str, help="Service host")
     parser.add_argument("--port", default=8002, type=int, help="Service port")
-    parser.add_argument("--lang", default="cn", type=str, help="Language")
+    parser.add_argument("--lang", default="en", choices=["en", "cn"], help="Language")
     parser.add_argument("--model_format", default="gpt4", type=str, help="Model format")
     parser.add_argument("--search_engine", default="DuckDuckGoSearch", type=str, help="Search engine")
-    parser.add_argument("--asy", default=False, action="store_true", help="Agent mode")
+    parser.add_argument("--asy", default=False, action="store_true", help="Use async agent mode")
+    parser.add_argument("--debug", default=False, action="store_true", help="Enable debug mode")
     return parser.parse_args()
 
 
+# Parse arguments and configure application
 args = parse_arguments()
-app = FastAPI(docs_url="/")
+
+# Set logging level based on debug flag
+if args.debug:
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger('mindsearch').setLevel(logging.DEBUG)
+
+# Create FastAPI application
+app = FastAPI(
+    title="MindSearch API",
+    description="AI-powered information retrieval and search system",
+    version="1.0.0",
+    docs_url="/docs" if args.debug else None,  # Only enable docs in debug mode
+    redoc_url="/redoc" if args.debug else None,
+)
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Configure this properly for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,138 +71,258 @@ app.add_middleware(
 
 
 class GenerationParams(BaseModel):
+    """Request parameters for the generation endpoint."""
     inputs: Union[str, List[Dict]]
     session_id: int = Field(default_factory=lambda: random.randint(0, 999999))
-    agent_cfg: Dict = dict()
+    agent_cfg: Dict = Field(default_factory=dict)
+    
+    @validator('inputs')
+    def validate_inputs(cls, v):
+        """Validate inputs parameter."""
+        if isinstance(v, str):
+            if not v.strip():
+                raise ValueError("Input string cannot be empty")
+        elif isinstance(v, list):
+            if not v:
+                raise ValueError("Input list cannot be empty")
+        else:
+            raise ValueError("Inputs must be a string or list")
+        return v
+
+
+class HealthResponse(BaseModel):
+    """Health check response model."""
+    status: str
+    version: str
+    configuration: Dict[str, str]
+
+
+# Global agent instance (initialized on startup)
+agent = None
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the agent on application startup."""
+    global agent
+    try:
+        logger.info("Initializing MindSearch agent...")
+        agent = init_agent(
+            lang=args.lang,
+            model_format=args.model_format,
+            search_engine=args.search_engine,
+            use_async=args.asy
+        )
+        logger.info("Agent initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}")
+        raise RuntimeError(f"Application startup failed: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown."""
+    logger.info("Shutting down MindSearch API")
 
 
 def _postprocess_agent_message(message: dict) -> dict:
-    content, fmt = message["content"], message["formatted"]
-    current_node = content["current_node"] if isinstance(content, dict) else None
-    if current_node:
-        message["content"] = None
-        for key in ["ref2url"]:
-            fmt.pop(key, None)
-        graph = fmt["node"]
-        for key in graph.copy():
-            if key != current_node:
-                graph.pop(key)
-        if current_node not in ["root", "response"]:
-            node = graph[current_node]
-            for key in ["memory", "session_id"]:
-                node.pop(key, None)
-            node_fmt = node["response"]["formatted"]
-            if isinstance(node_fmt, dict) and "thought" in node_fmt and "action" in node_fmt:
-                node["response"]["content"] = None
-                node_fmt["thought"] = (
-                    node_fmt["thought"] and node_fmt["thought"].split("<|action_start|>")[0]
-                )
-                if isinstance(node_fmt["action"], str):
-                    node_fmt["action"] = node_fmt["action"].split("<|action_end|>")[0]
-    else:
-        if isinstance(fmt, dict) and "thought" in fmt and "action" in fmt:
-            message["content"] = None
-            fmt["thought"] = fmt["thought"] and fmt["thought"].split("<|action_start|>")[0]
-            if isinstance(fmt["action"], str):
-                fmt["action"] = fmt["action"].split("<|action_end|>")[0]
-        for key in ["node"]:
-            fmt.pop(key, None)
-    return dict(current_node=current_node, response=message)
+    """
+    Post-process agent messages for consistent formatting.
+    
+    Args:
+        message: Raw agent message
+        
+    Returns:
+        Processed message dict
+    """
+    try:
+        content = message.get("content", {})
+        formatted = message.get("formatted", {})
+        
+        current_node = None
+        if isinstance(content, dict):
+            current_node = content.get("current_node")
+        
+        if current_node:
+            return {
+                "response": formatted.get("node", {}).get(current_node, {}),
+                "current_node": current_node,
+                "adjacency_list": formatted.get("adjacency_list", {}),
+                "all_nodes": formatted.get("node", {})
+            }
+        
+        return {
+            "response": content,
+            "current_node": "unknown",
+            "adjacency_list": {},
+            "all_nodes": {}
+        }
+    except Exception as e:
+        logger.error(f"Error post-processing message: {e}")
+        return {
+            "response": message,
+            "current_node": "error",
+            "adjacency_list": {},
+            "all_nodes": {}
+        }
 
 
-async def run(request: GenerationParams, _request: Request):
-    async def generate():
-        try:
-            queue = janus.Queue()
-            stop_event = asyncio.Event()
+async def _generate_stream_response(agent_instance, inputs: str, session_id: int):
+    """
+    Generate streaming responses from the agent.
+    
+    Args:
+        agent_instance: The MindSearch agent
+        inputs: Input query string
+        session_id: Session identifier
+        
+    Yields:
+        Formatted SSE messages
+    """
+    try:
+        logger.info(f"Starting search for session {session_id}: {inputs[:100]}...")
+        
+        message_count = 0
+        for agent_message in agent_instance(inputs, session_id=session_id):
+            message_count += 1
+            
+            # Convert agent message to dict format
+            if hasattr(agent_message, '__dict__'):
+                message_dict = {
+                    "content": getattr(agent_message, 'content', {}),
+                    "formatted": getattr(agent_message, 'formatted', {}),
+                    "sender": getattr(agent_message, 'sender', 'unknown'),
+                    "stream_state": getattr(agent_message, 'stream_state', None)
+                }
+            else:
+                message_dict = {"content": agent_message, "formatted": {}}
+            
+            # Post-process the message
+            processed_message = _postprocess_agent_message(message_dict)
+            
+            # Format as SSE event
+            event_data = {
+                "response": processed_message,
+                "session_id": session_id,
+                "message_count": message_count
+            }
+            
+            yield f"data: {json.dumps(event_data)}\n\n"
+            
+            # Add periodic ping to keep connection alive
+            if message_count % 10 == 0:
+                yield f": ping - {message_count}\n\n"
+        
+        logger.info(f"Search completed for session {session_id}, sent {message_count} messages")
+        
+    except Exception as e:
+        logger.error(f"Error in stream generation for session {session_id}: {e}")
+        error_event = {
+            "error": str(e),
+            "session_id": session_id,
+            "type": "error"
+        }
+        yield f"data: {json.dumps(error_event)}\n\n"
 
-            # Wrapping a sync generator as an async generator using run_in_executor
-            def sync_generator_wrapper():
-                try:
-                    for response in agent(inputs, session_id=session_id):
-                        queue.sync_q.put(response)
-                except Exception as e:
-                    logging.exception(f"Exception in sync_generator_wrapper: {e}")
-                finally:
-                    # Notify async_generator_wrapper that the data generation is complete.
-                    queue.sync_q.put(None)
 
-            async def async_generator_wrapper():
-                loop = asyncio.get_event_loop()
-                loop.run_in_executor(None, sync_generator_wrapper)
-                while True:
-                    response = await queue.async_q.get()
-                    if response is None:  # Ensure that all elements are consumed
-                        break
-                    yield response
-                stop_event.set()  # Inform sync_generator_wrapper to stop
-
-            async for message in async_generator_wrapper():
-                response_json = json.dumps(
-                    _postprocess_agent_message(message.model_dump()),
-                    ensure_ascii=False,
-                )
-                yield {"data": response_json}
-                if await _request.is_disconnected():
-                    break
-        except Exception as exc:
-            msg = "An error occurred while generating the response."
-            logging.exception(msg)
-            response_json = json.dumps(
-                dict(error=dict(msg=msg, details=str(exc))), ensure_ascii=False
-            )
-            yield {"data": response_json}
-        finally:
-            await stop_event.wait()  # Waiting for async_generator_wrapper to stop
-            queue.close()
-            await queue.wait_closed()
-            agent.agent.memory.memory_map.pop(session_id, None)
-
-    inputs = request.inputs
-    session_id = request.session_id
-    agent = init_agent(
-        lang=args.lang,
-        model_format=args.model_format,
-        search_engine=args.search_engine,
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint."""
+    return HealthResponse(
+        status="healthy" if agent is not None else "unhealthy",
+        version="1.0.0",
+        configuration={
+            "language": args.lang,
+            "model_format": args.model_format,
+            "search_engine": args.search_engine,
+            "async_mode": str(args.asy)
+        }
     )
-    return EventSourceResponse(generate(), ping=300)
 
 
-async def run_async(request: GenerationParams, _request: Request):
-    async def generate():
-        try:
-            async for message in agent(inputs, session_id=session_id):
-                response_json = json.dumps(
-                    _postprocess_agent_message(message.model_dump()),
-                    ensure_ascii=False,
-                )
-                yield {"data": response_json}
-                if await _request.is_disconnected():
-                    break
-        except Exception as exc:
-            msg = "An error occurred while generating the response."
-            logging.exception(msg)
-            response_json = json.dumps(
-                dict(error=dict(msg=msg, details=str(exc))), ensure_ascii=False
+@app.post("/solve")
+async def solve(params: GenerationParams, request: Request):
+    """
+    Main endpoint for processing search queries.
+    
+    Args:
+        params: Generation parameters including the query
+        request: FastAPI request object
+        
+    Returns:
+        Streaming response with search results
+    """
+    if agent is None:
+        logger.error("Agent not initialized")
+        raise HTTPException(
+            status_code=503,
+            detail="Service unavailable: Agent not initialized"
+        )
+    
+    try:
+        # Extract query from inputs
+        if isinstance(params.inputs, str):
+            query = params.inputs
+        elif isinstance(params.inputs, list) and params.inputs:
+            # Handle list format - take first string element
+            query = str(params.inputs[0])
+        else:
+            raise ValueError("Invalid inputs format")
+        
+        if not query.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Query cannot be empty"
             )
-            yield {"data": response_json}
-        finally:
-            agent.agent.memory.memory_map.pop(session_id, None)
+        
+        logger.info(f"Processing query for session {params.session_id}: {query[:100]}...")
+        
+        # Return streaming response
+        return EventSourceResponse(
+            _generate_stream_response(agent, query, params.session_id),
+            media_type="text/plain",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+        
+    except ValueError as e:
+        logger.warning(f"Invalid request for session {params.session_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Internal error for session {params.session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-    inputs = request.inputs
-    session_id = request.session_id
-    agent = init_agent(
-        lang=args.lang,
-        model_format=args.model_format,
-        search_engine=args.search_engine,
-        use_async=True,
-    )
-    return EventSourceResponse(generate(), ping=300)
+
+@app.get("/")
+async def root():
+    """Root endpoint with basic information."""
+    return {
+        "name": "MindSearch API",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "solve": "/solve",
+            "docs": "/docs" if args.debug else "disabled"
+        }
+    }
 
 
-app.add_api_route("/solve", run_async if args.asy else run, methods=["POST"])
-
+# For running with uvicorn
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    
+    logger.info(f"Starting MindSearch API server on {args.host}:{args.port}")
+    logger.info(f"Configuration: lang={args.lang}, model={args.model_format}, search={args.search_engine}")
+    
+    uvicorn.run(
+        "mindsearch.app:app",
+        host=args.host,
+        port=args.port,
+        reload=args.debug,
+        log_level="debug" if args.debug else "info"
+    )
