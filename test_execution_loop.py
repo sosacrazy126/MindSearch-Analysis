@@ -11,6 +11,12 @@ from collections import defaultdict
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import mock modules before any lagent imports
+try:
+    import mock_lagent
+except ImportError:
+    pass
+
 # Mock the dependencies to avoid installation issues
 class MockAgentMessage:
     def __init__(self, content="", sender="", receiver=""):
@@ -159,10 +165,7 @@ def test_execution_loop():
     }
     
     # Create instrumented instances
-    graph = DiagnosticWebSearchGraph(
-        llm={},  # Mock LLM
-        searcher_cfg={'name': 'DuckDuckGoSearch'}
-    )
+    graph = DiagnosticWebSearchGraph()
     
     action = DiagnosticExecutionAction(
         search_engine=graph,

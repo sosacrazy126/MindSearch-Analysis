@@ -6,9 +6,16 @@ import logging
 import sys
 import os
 from typing import Dict, Any
+import pytest
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import mock modules before any lagent imports
+try:
+    import mock_lagent
+except ImportError:
+    logger.warning("Could not import mock_lagent, tests may fail if lagent is not installed")
 
 # Set up logging
 logging.basicConfig(
@@ -29,6 +36,7 @@ from mindsearch.agent.memory_handler import (
 )
 
 
+@pytest.mark.asyncio
 async def test_search_engines():
     """Test the search engine abstraction layer."""
     print("\n" + "="*60)
@@ -141,6 +149,7 @@ def test_memory_handler():
     print(f"Converted back to agent state with {len(new_agent_state['adj'])} nodes")
 
 
+@pytest.mark.asyncio
 async def test_integration():
     """Test integration of components."""
     print("\n" + "="*60)
