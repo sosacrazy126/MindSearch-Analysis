@@ -22,7 +22,7 @@ def parse_arguments():
     parser.add_argument("--port", default=8002, type=int, help="Service port")
     parser.add_argument("--model_format", default="gpt4", type=str, help="Model format")
     parser.add_argument("--search_engine", default="DuckDuckGoSearch", type=str, 
-                        help="Search engine: DuckDuckGoSearch, TavilySearch, or TencentSearch")
+                        help="Search engine: DuckDuckGoSearch or TencentSearch")
     parser.add_argument("--asy", default=False, action="store_true", help="Agent mode")
     return parser.parse_args()
 

@@ -64,7 +64,7 @@ class RobustMindSearchTerminal:
         return {
             'model_name': os.environ.get("MODEL_NAME", "gpt4o-mini"),
             'openai_api_key': os.environ.get("OPENAI_API_KEY"),
-            'tavily_api_key': os.environ.get("TAVILY_API_KEY", ""),
+
             'search_engine': os.environ.get("SEARCH_ENGINE", "DuckDuckGo"),
             'enable_fallback': os.environ.get("ENABLE_FALLBACK", "true").lower() == "true",
             'max_node_visits': int(os.environ.get("MAX_NODE_VISITS", "3")),
@@ -159,18 +159,7 @@ class RobustMindSearchTerminal:
         """Create search plugins based on configuration."""
         plugins = []
         
-        if self.config['search_engine'] == "TavilySearch" and self.config['tavily_api_key']:
-            try:
-                from mindsearch.agent.tavily_search import TavilySearch
-                plugins.append(TavilySearch(
-                    api_key=self.config['tavily_api_key'],
-                    search_depth="advanced",
-                    include_answer=True,
-                    max_results=6
-                ))
-                logger.info("Using Tavily search")
-            except Exception as e:
-                logger.warning(f"Failed to initialize Tavily: {e}")
+
         
         # Fallback to DuckDuckGo
         if not plugins and LAGENT_AVAILABLE:
