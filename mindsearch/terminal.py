@@ -17,6 +17,7 @@ from mindsearch.agent.mindsearch_prompt import (
     searcher_system_prompt_en,
 )
 from mindsearch.agent.models import get_model_config
+from mindsearch.agent.tavily_search import TavilySearch
 
 # Initialize Tavily client
 tavily_api_key = os.environ.get("TAVILY_API_KEY", "tvly-YOUR_API_KEY")
@@ -53,7 +54,21 @@ llm = GPTAPI(
     temperature=model_config.get("temperature", 0.7),
 )
 
-plugins = [WebBrowser(searcher_type="DuckDuckGoSearch", topk=6)]
+# Choose search engine: "TavilySearch" or "DuckDuckGoSearch"
+search_engine = os.environ.get("SEARCH_ENGINE", "TavilySearch")
+
+if search_engine == "TavilySearch":
+    # Use Tavily for search
+    plugins = [TavilySearch(
+        api_key=tavily_api_key,
+        search_depth="advanced",
+        include_answer=True,
+        max_results=6
+    )]
+else:
+    # Use default DuckDuckGo search
+    plugins = [WebBrowser(searcher_type="DuckDuckGoSearch", topk=6)]
+
 agent = MindSearchAgent(
     llm=llm,
     template=date,
