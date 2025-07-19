@@ -26,9 +26,17 @@ def get_response(query):
             elif decoded.startswith(": ping - "):
                 continue
             response_data = json.loads(decoded)
-            agent_return = response_data["response"]
-            node_name = response_data["current_node"]
-            print(f"Node: {node_name}, Response: {agent_return['response']}")
+            print(f"Raw response: {response_data}")
+            
+            agent_return = response_data.get("response", {})
+            node_name = response_data.get("current_node", "unknown")
+            
+            if "response" in agent_return:
+                print(f"Node: {node_name}, Response: {agent_return['response']}")
+            elif "content" in agent_return:
+                print(f"Node: {node_name}, Content: {agent_return['content']}")
+            else:
+                print(f"Node: {node_name}, Data: {agent_return}")
 
 
 # Example usage

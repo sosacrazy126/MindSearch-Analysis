@@ -31,7 +31,7 @@ if not openai_api_key:
     sys.exit(1)
 
 llm = GPTAPI(
-    model_type="gpt-4-turbo",
+    model_type="gpt-4.0-mini",
     key=openai_api_key,
     api_base=os.environ.get("OPENAI_API_BASE") or os.getenv("OPENAI_API_BASE") or "https://api.openai.com/v1/chat/completions",
 )
