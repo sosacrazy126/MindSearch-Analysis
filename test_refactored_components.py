@@ -10,6 +10,12 @@ from typing import Dict, Any
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import mock modules before any lagent imports
+try:
+    import mock_lagent
+except ImportError:
+    logger.warning("Could not import mock_lagent, tests may fail if lagent is not installed")
+
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
