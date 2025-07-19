@@ -1,0 +1,35 @@
+# Testing requirements for MindSearch LangGraph
+
+# Core testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0
+pytest-mock>=3.11.0
+
+# Performance testing
+pytest-benchmark>=4.0.0
+
+# Test utilities
+faker>=19.0.0
+freezegun>=1.2.0
+
+# Code quality
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Documentation testing
+pytest-doctest-custom>=1.0.0
+
+# Parallel test execution (optional)
+pytest-xdist>=3.3.0
+
+# Test reporting
+pytest-html>=3.2.0
+pytest-json-report>=1.5.0
+
+# Debugging tools
+pytest-pdb>=0.3.1
+ipdb>=0.13.0
