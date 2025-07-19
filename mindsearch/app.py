@@ -128,7 +128,6 @@ async def run(request: GenerationParams, _request: Request):
     inputs = request.inputs
     session_id = request.session_id
     agent = init_agent(
-        lang="en",
         model_format=args.model_format,
         search_engine=args.search_engine,
     )
@@ -159,7 +158,6 @@ async def run_async(request: GenerationParams, _request: Request):
     inputs = request.inputs
     session_id = request.session_id
     agent = init_agent(
-        lang="en",
         model_format=args.model_format,
         search_engine=args.search_engine,
         use_async=True,

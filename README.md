@@ -10,152 +10,166 @@
 
 [📃 Paper](https://arxiv.org/abs/2407.20183) | [💻 Demo](https://internlm-chat.intern-ai.org.cn/)
 
-English | [简体中文](README_zh-CN.md)
+English
 
 <https://github.com/user-attachments/assets/44ffe4b9-be26-4b93-a77b-02fed16e33fe>
 
 </div>
 </p>
 
-## ✨ MindSearch: Mimicking Human Minds Elicits Deep AI Searcher
+# MindSearch: Mimicking Human Minds Elicits Deep AI Searcher
 
-## 📅 Changelog
+<div align="center">
 
-- 2024/11/05: 🥳 MindSearch is now deployed on Puyu! 👉 [Try it](https://internlm-chat.intern-ai.org.cn/) 👈
-  -  Refactored the agent module based on [Lagent v0.5](https://github.com/InternLM/lagent) for better performance in concurrency.
-  -  Improved the UI to embody the simultaneous multi-query search.
+[![Demo](https://img.shields.io/badge/Demo-Hugging%20Face-orange)](https://huggingface.co/spaces/internlm/MindSearch)
+[![Demo](https://img.shields.io/badge/Demo-ModelScope-purple)](https://modelscope.cn/studios/Shanghai_AI_Laboratory/MindSearch)
+[![license](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://github.com/InternLM/MindSearch/blob/main/LICENSE)
 
+English
 
-## ⚽️ Build Your Own MindSearch
+[Paper](https://arxiv.org/abs/2407.20183)
 
-### Step1: Dependencies Installation
+https://github.com/user-attachments/assets/b2c9f1d1-0e17-42de-8e88-f861a8d96f19
 
+</div>
+
+## 🎉 News
+- **2024-07-30**: We release the MindSearch paper on arXiv and the project on GitHub.
+
+## 📖 Introduction
+
+MindSearch is an open-source AI Search Engine Framework that mimics human minds to provide deep AI search capabilities. It breaks down user queries into sub-questions, uses a WebSearchGraph to systematically browse the web, and provides comprehensive answers with credible references.
+
+### Key Features
+- 🧠 **Human-like Search Strategy**: Decomposes complex queries into manageable sub-questions
+- 🔍 **Deep Web Exploration**: Systematically browses and analyzes web content
+- 📊 **Structured Knowledge Graph**: Builds a WebSearchGraph for organized information retrieval
+- 🎯 **Credible References**: Provides answers with proper citations and sources
+- 🚀 **High Performance**: Efficient parallel search processing
+
+## 🛠️ Installation
+
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/InternLM/MindSearch
 cd MindSearch
+```
+
+### 2. Install Dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### Step2: Setup Environment Variables
+### 3. Set Up Environment Variables
+Create a `.env` file in the root directory:
+```bash
+cp .env.example .env
+```
 
-Before setting up the API, you need to configure environment variables. Rename the `.env.example` file to `.env` and fill in the required values.
+Edit the `.env` file and add your API keys:
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+# Optional: Add other search engine API keys
+WEB_SEARCH_API_KEY=your_search_api_key_here
+```
+
+## 🚀 Quick Start
+
+### Step 1: Setup FastAPI Server
 
 ```bash
-mv .env.example .env
-# Open .env and add your keys and model configurations
+python -m mindsearch.app --model_format gpt4 --search_engine DuckDuckGoSearch
 ```
 
-### Step3: Setup MindSearch API
+**Parameters:**
+- `--model_format`: Format of the model
+  - `gpt4` for GPT-4 (default)
+  - Other models can be configured in [models.py](./mindsearch/agent/models.py)
+- `--search_engine`: Search engine to use
+  - `DuckDuckGoSearch` (default, no API key required)
+  - `BingSearch` (requires Bing API key)
+  - `BraveSearch` (requires Brave API key)
+  - `GoogleSearch` (requires Google Serper API key)
+  - `TencentSearch` (requires Tencent API credentials)
 
-Setup FastAPI Server.
+### Step 2: Test the API
 
-```bash
-python -m mindsearch.app --lang en --model_format internlm_server --search_engine DuckDuckGoSearch --asy 
-```
-
-- `--lang`: language of the model, `en` for English and `cn` for Chinese.
-- `--model_format`: format of the model.
-  - `internlm_server` for InternLM2.5-7b-chat with local server. (InternLM2.5-7b-chat has been better optimized for Chinese.)
-  - `gpt4` for GPT4.
-    if you want to use other models, please modify [models](./mindsearch/agent/models.py)
-- `--search_engine`: Search engine.
-  - `DuckDuckGoSearch` for search engine for DuckDuckGo.
-  - `BingSearch` for Bing search engine.
-  - `BraveSearch` for Brave search web api engine.
-  - `GoogleSearch` for Google Serper web search api engine.
-  - `TencentSearch` for Tencent search api engine.
-  
-  Please set your Web Search engine API key as the `WEB_SEARCH_API_KEY` environment variable unless you are using `DuckDuckGo`, or `TencentSearch` that requires secret id as `TENCENT_SEARCH_SECRET_ID` and secret key as `TENCENT_SEARCH_SECRET_KEY`.
-- `--asy`: deploy asynchronous agents.
-
-### Step4: Setup MindSearch Frontend
-
-Providing following frontend interfaces,
-
-- React
-
-First configurate the backend URL for Vite proxy.
-
-```bash
-HOST="127.0.0.1"  # modify as you need
-PORT=8002
-sed -i -r "s/target:\s*\"\"/target: \"${HOST}:${PORT}\"/" frontend/React/vite.config.ts
-```
-
-```bash
-# Install Node.js and npm
-# for Ubuntu
-sudo apt install nodejs npm
-
-# for windows
-# download from https://nodejs.org/zh-cn/download/prebuilt-installer
-
-# Install dependencies
-
-cd frontend/React
-npm install
-npm start
-```
-
-Details can be found in [React](./frontend/React/README.md)
-
-- Gradio
-
-```bash
-python frontend/mindsearch_gradio.py
-```
-
-- Streamlit
-
-```bash
-streamlit run frontend/mindsearch_streamlit.py
-```
-
-## 🌐 Change Web Search API
-
-To use a different type of web search API, modify the `searcher_type` attribute in the `searcher_cfg` located in `mindsearch/agent/__init__.py`. Currently supported web search APIs include:
-
-- `GoogleSearch`
-- `DuckDuckGoSearch`
-- `BraveSearch`
-- `BingSearch`
-- `TencentSearch`
-
-For example, to change to the Brave Search API, you would configure it as follows:
-
-```python
-BingBrowser(
-    searcher_type='BraveSearch',
-    topk=2,
-    api_key=os.environ.get('BRAVE_API_KEY', 'YOUR BRAVE API')
-)
-```
-
-## 🐞 Using the Backend Without Frontend
-
-For users who prefer to interact with the backend directly, use the `backend_example.py` script. This script demonstrates how to send a query to the backend and process the response.
+You can test the API using the provided example script:
 
 ```bash
 python backend_example.py
 ```
 
-Make sure you have set up the environment variables and the backend is running before executing the script.
+Or use curl:
 
-## 🐞 Debug Locally
+```bash
+curl -X POST "http://localhost:8002/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": "What is the weather like in New York today?"}'
+```
+
+### Step 3: Run Terminal Interface (Optional)
+
+For a simple terminal interface:
 
 ```bash
 python -m mindsearch.terminal
 ```
 
-## 📝 License
+## 🖥️ Frontend Setup (Optional)
 
-This project is released under the [Apache 2.0 license](LICENSE).
+### React Frontend
 
-## Citation
-
-If you find this project useful in your research, please consider cite:
-
+1. Configure the backend URL:
+```bash
+HOST="127.0.0.1"
+PORT=8002
+sed -i -r "s/target:\s*\"\"/target: \"${HOST}:${PORT}\"/" frontend/React/vite.config.ts
 ```
+
+2. Install and run:
+```bash
+cd frontend/React
+npm install
+npm start
+```
+
+Visit http://localhost:5173 to access the web interface.
+
+## 📚 Documentation
+
+### API Endpoints
+
+- `POST /generate`: Main endpoint for search queries
+  - Request body: `{"inputs": "your question here"}`
+  - Returns: Streaming response with search progress and final answer
+
+### Configuration
+
+The system can be configured through:
+- Command-line arguments when starting the server
+- Environment variables in `.env` file
+- Direct modification of configuration files
+
+### Model Support
+
+Currently supported models:
+- OpenAI GPT-4 (default)
+- Additional models can be added in `mindsearch/agent/models.py`
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## 📖 Citation
+
+If you find this project useful in your research, please consider citing:
+
+```bibtex
 @article{chen2024mindsearch,
   title={MindSearch: Mimicking Human Minds Elicits Deep AI Searcher},
   author={Chen, Zehui and Liu, Kuikun and Wang, Qiuchen and Liu, Jiangning and Zhang, Wenwei and Chen, Kai and Zhao, Feng},
@@ -164,10 +178,10 @@ If you find this project useful in your research, please consider cite:
 }
 ```
 
-## Our Projects
+## 🙏 Acknowledgments
 
-Explore our additional research on large language models, focusing on LLM agents.
+MindSearch is built on top of [Lagent](https://github.com/InternLM/lagent) and uses various open-source models and tools. We thank all the contributors and maintainers of these projects.
 
-- [Lagent](https://github.com/InternLM/lagent): A lightweight framework for building LLM-based agents
-- [AgentFLAN](https://github.com/InternLM/Agent-FLAN): An innovative approach for constructing and training with high-quality agent datasets (ACL 2024 Findings)
-- [T-Eval](https://github.com/open-compass/T-Eval): A Fine-grained tool utilization evaluation benchmark (ACL 2024)
+## 📞 Contact
+
+For questions and support, please open an issue on GitHub or contact us through the official channels.
