@@ -6,6 +6,7 @@ from lagent.actions import WebBrowser
 from lagent.agents.stream import get_plugin_prompt
 from lagent.llms import GPTAPI
 from lagent.prompts import InterpreterParser, PluginParser
+from tavily import TavilyClient
 
 from mindsearch.agent.mindsearch_agent import MindSearchAgent
 from mindsearch.agent.mindsearch_prompt import (
@@ -16,6 +17,16 @@ from mindsearch.agent.mindsearch_prompt import (
     searcher_system_prompt_en,
 )
 from mindsearch.agent.models import get_model_config
+
+# Initialize Tavily client
+tavily_api_key = os.environ.get("TAVILY_API_KEY", "tvly-YOUR_API_KEY")
+tavily_client = TavilyClient(api_key=tavily_api_key)
+
+# Default search example
+print("=== Tavily Search Example ===")
+response = tavily_client.search("Who is Leo Messi?")
+print(response)
+print("=== End of Tavily Example ===\n")
 
 # Get model from environment or use default
 model_name = os.environ.get("MODEL_NAME", "gpt4o-mini")
